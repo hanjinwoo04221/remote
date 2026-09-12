@@ -23,10 +23,12 @@ export class DirectAgentService {
     repo,
     branch,
     prompt,
-    modelName = 'gemini-2.5-flash',
+    modelName = 'gemini-2.0-flash',
     signal,
     onEvent,
   }: DirectAgentOptions): Promise<FileChange[]> {
+    // Sanitize deprecated model names
+    const resolvedModel = modelName.includes('2.5') ? 'gemini-2.0-flash' : modelName;
     const proposedChanges: Map<string, FileChange> = new Map();
 
     // Cache repo tree for quick lookups
@@ -151,7 +153,7 @@ Guidelines:
         content: `Thinking (Step ${step}/${MAX_STEPS})...`,
       });
 
-      const url = `${GEMINI_BASE_URL}/${modelName}:generateContent?key=${encodeURIComponent(geminiApiKey)}`;
+      const url = `${GEMINI_BASE_URL}/${resolvedModel}:generateContent?key=${encodeURIComponent(geminiApiKey)}`;
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

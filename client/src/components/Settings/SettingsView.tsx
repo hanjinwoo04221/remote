@@ -29,7 +29,9 @@ interface SettingsViewProps {
 export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave }) => {
   const [githubToken, setGithubToken] = useState(settings.githubToken);
   const [geminiApiKey, setGeminiApiKey] = useState(settings.geminiApiKey);
-  const [modelName, setModelName] = useState(settings.modelName || 'gemini-2.5-flash');
+  const [modelName, setModelName] = useState(
+    settings.modelName?.includes('2.5') ? 'gemini-2.0-flash' : settings.modelName || 'gemini-2.0-flash'
+  );
   const [connectionMode, setConnectionMode] = useState<'direct' | 'proxy'>(
     settings.connectionMode || 'direct'
   );
@@ -258,9 +260,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave }) 
             onChange={(e) => setModelName(e.target.value)}
             className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
           >
-            <option value="gemini-2.5-flash">Gemini 2.5 Flash (권장: 빠른 속도 및 도구 실행)</option>
-            <option value="gemini-2.5-pro">Gemini 2.5 Pro (복잡한 아키텍처 및 대형 코드)</option>
-            <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+            <option value="gemini-2.0-flash">
+              Gemini 2.0 Flash (권장: 최신 정식 버전, 빠른 속도 및 도구 실행)
+            </option>
+            <option value="gemini-1.5-flash">Gemini 1.5 Flash (안정적인 표준 모델)</option>
+            <option value="gemini-1.5-pro">Gemini 1.5 Pro (복잡한 추론 및 대형 코드베이스)</option>
           </select>
         </div>
       </div>

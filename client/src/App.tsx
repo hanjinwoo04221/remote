@@ -30,22 +30,21 @@ export const App: React.FC = () => {
   const [settings, setSettings] = useState<UserSettings>(() => {
     try {
       const saved = localStorage.getItem(SETTINGS_KEY);
-      return saved
-        ? JSON.parse(saved)
-        : {
-            githubToken: '',
-            geminiApiKey: '',
-            modelName: 'gemini-2.5-flash',
-            connectionMode: 'direct',
-          };
-    } catch {
-      return {
-        githubToken: '',
-        geminiApiKey: '',
-        modelName: 'gemini-2.5-flash',
-        connectionMode: 'direct',
-      };
-    }
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (!parsed.modelName || parsed.modelName.includes('2.5')) {
+          parsed.modelName = 'gemini-2.0-flash';
+          localStorage.setItem(SETTINGS_KEY, JSON.stringify(parsed));
+        }
+        return parsed;
+      }
+    } catch {}
+    return {
+      githubToken: '',
+      geminiApiKey: '',
+      modelName: 'gemini-2.0-flash',
+      connectionMode: 'direct',
+    };
   });
 
   // Selected Repository & Branch
