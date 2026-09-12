@@ -34,8 +34,11 @@ export const App: React.FC = () => {
         const parsed = JSON.parse(saved);
         if (!parsed.modelName || parsed.modelName.includes('2.5')) {
           parsed.modelName = 'gemini-3.6';
-          localStorage.setItem(SETTINGS_KEY, JSON.stringify(parsed));
         }
+        if (!parsed.aiProvider) parsed.aiProvider = 'gemini';
+        if (!parsed.localBaseUrl) parsed.localBaseUrl = 'http://localhost:11434/v1';
+        if (!parsed.localModelName) parsed.localModelName = 'qwen2.5-coder:7b';
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(parsed));
         return parsed;
       }
     } catch {}
@@ -44,6 +47,10 @@ export const App: React.FC = () => {
       geminiApiKey: '',
       modelName: 'gemini-3.6',
       connectionMode: 'direct',
+      aiProvider: 'gemini',
+      localBaseUrl: 'http://localhost:11434/v1',
+      localApiKey: '',
+      localModelName: 'qwen2.5-coder:7b',
     };
   });
 
@@ -99,8 +106,20 @@ export const App: React.FC = () => {
 
   // Run Agent
   const handleSendMessage = async (prompt: string) => {
-    if (!settings.githubToken || !settings.geminiApiKey) {
-      alert('GitHub 토큰과 Gemini API Key가 필요합니다. 설정 탭으로 이동합니다.');
+    if (!settings.githubToken) {
+      alert('GitHub 토큰이 필요합니다. 설정 탭으로 이동합니다.');
+      setActiveTab('settings');
+      return;
+    }
+
+    if (settings.aiProvider === 'gemini' && !settings.geminiApiKey) {
+      alert('Gemini API Key가 필요합니다. 설정 탭으로 이동합니다.');
+      setActiveTab('settings');
+      return;
+    }
+
+    if (settings.aiProvider === 'openai_compatible' && !settings.localBaseUrl) {
+      alert('로컬 AI 서버 URL이 필요합니다. 설정 탭으로 이동합니다.');
       setActiveTab('settings');
       return;
     }
@@ -132,6 +151,10 @@ export const App: React.FC = () => {
     setIsStreaming(true);
 
     const abortFn = await ApiService.runAgentStream({
+      aiProvider: settings.aiProvider,
+      localBaseUrl: settings.localBaseUrl,
+      localApiKey: settings.localApiKey,
+      localModelName: settings.localModelName,
       geminiApiKey: settings.geminiApiKey,
       githubToken: settings.githubToken,
       owner: currentRepo.owner,
@@ -241,7 +264,11 @@ export const App: React.FC = () => {
         currentBranch={currentBranch}
         onOpenRepoSelector={() => setIsRepoSelectorOpen(true)}
         hasGithubToken={Boolean(settings.githubToken)}
-        hasGeminiKey={Boolean(settings.geminiApiKey)}
+        hasGeminiKey={
+          settings.aiProvider === 'gemini'
+            ? Boolean(settings.geminiApiKey)
+            : Boolean(settings.localBaseUrl)
+        }
         onOpenSettings={() => setActiveTab('settings')}
       />
 

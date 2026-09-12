@@ -75,4 +75,8 @@ export interface UserSettings {
   geminiApiKey: string;
   modelName: string;
   connectionMode: 'direct' | 'proxy';
+  aiProvider: 'gemini' | 'openai_compatible';
+  localBaseUrl: string;
+  localApiKey: string;
+  localModelName: string;
 }

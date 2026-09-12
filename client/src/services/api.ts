@@ -8,6 +8,7 @@ import {
 } from '../types.js';
 import { DirectGitHubService } from './directGitHub.js';
 import { DirectAgentService } from './directAgent.js';
+import { DirectOpenAIAgentService } from './directOpenAIAgent.js';
 
 const API_BASE = '/api';
 
@@ -50,6 +51,26 @@ export class ApiService {
             m.supportedGenerationMethods.includes('generateContent')
         )
         .map((m: any) => (m.name || '').replace(/^models\//, ''))
+        .filter(Boolean);
+      return Array.from(new Set(list));
+    } catch {
+      return [];
+    }
+  }
+
+  static async fetchLocalModels(baseUrl: string, apiKey?: string): Promise<string[]> {
+    const cleanUrl = (baseUrl || 'http://localhost:11434/v1').replace(/\/+$/, '');
+    const endpoint = cleanUrl.endsWith('/models') ? cleanUrl : `${cleanUrl}/models`;
+    const headers: HeadersInit = {};
+    if (apiKey && apiKey.trim()) {
+      headers['Authorization'] = `Bearer ${apiKey.trim()}`;
+    }
+    try {
+      const res = await fetch(endpoint, { headers });
+      if (!res.ok) return [];
+      const data = await res.json();
+      const list: string[] = (data.data || data.models || [])
+        .map((m: any) => m.id || m.name)
         .filter(Boolean);
       return Array.from(new Set(list));
     } catch {
@@ -174,6 +195,10 @@ export class ApiService {
   }
 
   static async runAgentStream({
+    aiProvider = 'gemini',
+    localBaseUrl = 'http://localhost:11434/v1',
+    localApiKey,
+    localModelName = 'qwen2.5-coder:7b',
     geminiApiKey,
     githubToken,
     owner,
@@ -185,6 +210,10 @@ export class ApiService {
     onError,
     onDone,
   }: {
+    aiProvider?: 'gemini' | 'openai_compatible';
+    localBaseUrl?: string;
+    localApiKey?: string;
+    localModelName?: string;
     geminiApiKey: string;
     githubToken: string;
     owner: string;
@@ -198,7 +227,30 @@ export class ApiService {
   }): Promise<() => void> {
     const controller = new AbortController();
 
-    // Direct Browser Mode (Default: works even when desktop PC is off!)
+    // Local AI / Ollama Mode
+    if (aiProvider === 'openai_compatible') {
+      DirectOpenAIAgentService.run({
+        baseUrl: localBaseUrl,
+        apiKey: localApiKey,
+        modelName: localModelName,
+        githubToken,
+        owner,
+        repo,
+        branch,
+        prompt,
+        signal: controller.signal,
+        onEvent,
+      })
+        .then(() => onDone())
+        .catch((err: any) => {
+          if (err.name !== 'AbortError' && !controller.signal.aborted) {
+            onError(err.message || 'Local AI agent execution failed');
+          }
+        });
+      return () => controller.abort();
+    }
+
+    // Direct Browser Mode (Gemini)
     if (this.getMode() === 'direct') {
       DirectAgentService.run({
         geminiApiKey,

@@ -12,6 +12,8 @@ import {
   Eye,
   EyeOff,
   RefreshCw,
+  Server,
+  Cpu,
 } from 'lucide-react';
 import { UserSettings } from '../../types.js';
 import { ApiService } from '../../services/api.js';
@@ -65,6 +67,44 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave }) 
   const [showGithubToken, setShowGithubToken] = useState(false);
   const [showGeminiKey, setShowGeminiKey] = useState(false);
 
+  // Local AI State
+  const [aiProvider, setAiProvider] = useState<'gemini' | 'openai_compatible'>(
+    settings.aiProvider || 'gemini'
+  );
+  const [localBaseUrl, setLocalBaseUrl] = useState(
+    settings.localBaseUrl || 'http://localhost:11434/v1'
+  );
+  const [localApiKey, setLocalApiKey] = useState(settings.localApiKey || '');
+  const [localModelName, setLocalModelName] = useState(
+    settings.localModelName || 'qwen2.5-coder:7b'
+  );
+
+  const [availableLocalModels, setAvailableLocalModels] = useState<string[]>([
+    'qwen2.5-coder:7b',
+    'qwen2.5-coder:14b',
+    'qwen2.5-coder:32b',
+    'deepseek-coder-v2:16b',
+    'llama3.1:8b',
+  ]);
+  const [loadingLocalModels, setLoadingLocalModels] = useState(false);
+
+  const handleFetchLocalModels = async () => {
+    if (!localBaseUrl.trim()) return;
+    setLoadingLocalModels(true);
+    try {
+      const fetched = await ApiService.fetchLocalModels(localBaseUrl, localApiKey);
+      if (fetched.length > 0) {
+        setAvailableLocalModels(fetched);
+        if (!fetched.includes(localModelName)) {
+          setLocalModelName(fetched[0]);
+        }
+      }
+    } catch {
+    } finally {
+      setLoadingLocalModels(false);
+    }
+  };
+
   const [verifying, setVerifying] = useState(false);
   const [githubUser, setGithubUser] = useState<{ login: string; avatarUrl: string } | null>(null);
   const [verifyError, setVerifyError] = useState<string | null>(null);
@@ -107,6 +147,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave }) 
       geminiApiKey: geminiApiKey.trim(),
       modelName,
       connectionMode,
+      aiProvider,
+      localBaseUrl: localBaseUrl.trim(),
+      localApiKey: localApiKey.trim(),
+      localModelName: localModelName.trim(),
     });
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2500);
@@ -243,87 +287,211 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave }) 
         </button>
       </div>
 
-      {/* Gemini API Key Section */}
+      {/* AI Provider Selector Card */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-purple-400" />
-            <h3 className="text-xs font-semibold text-white">Google Gemini API Key</h3>
+            <Cpu className="w-4 h-4 text-purple-400" />
+            <h3 className="text-xs font-semibold text-white">AI 엔진 제공자</h3>
           </div>
-          <a
-            href="https://aistudio.google.com/app/apikey"
-            target="_blank"
-            rel="noreferrer"
-            className="text-[11px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
-          >
-            <span>무료 키 발급 (AI Studio)</span>
-            <ExternalLink className="w-3 h-3" />
-          </a>
+          <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-medium">
+            {aiProvider === 'gemini' ? 'Google Gemini' : 'Ollama / 로컬 AI'}
+          </span>
         </div>
 
-        <div className="relative">
-          <input
-            type={showGeminiKey ? 'text' : 'password'}
-            value={geminiApiKey}
-            onChange={(e) => setGeminiApiKey(e.target.value)}
-            placeholder="AIzaSy..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3 pr-10 py-2 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:border-indigo-500"
-          />
+        <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800">
           <button
             type="button"
-            onClick={() => setShowGeminiKey(!showGeminiKey)}
-            className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-200"
+            onClick={() => setAiProvider('gemini')}
+            className={`py-2 px-2.5 rounded-lg text-xs font-medium transition-colors text-center ${
+              aiProvider === 'gemini'
+                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow font-semibold'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
           >
-            {showGeminiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            🌟 Google Gemini (클라우드)
+          </button>
+          <button
+            type="button"
+            onClick={() => setAiProvider('openai_compatible')}
+            className={`py-2 px-2.5 rounded-lg text-xs font-medium transition-colors text-center ${
+              aiProvider === 'openai_compatible'
+                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow font-semibold'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            🦙 Ollama / 로컬 AI
           </button>
         </div>
+      </div>
 
-        {/* Model Selection */}
-        <div className="space-y-2 pt-1">
+      {aiProvider === 'gemini' ? (
+        /* Gemini API Key Section */
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-300 font-medium">기본 AI 모델</label>
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-purple-400" />
+              <h3 className="text-xs font-semibold text-white">Google Gemini API Key</h3>
+            </div>
+            <a
+              href="https://aistudio.google.com/app/apikey"
+              target="_blank"
+              rel="noreferrer"
+              className="text-[11px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+            >
+              <span>무료 키 발급 (AI Studio)</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+
+          <div className="relative">
+            <input
+              type={showGeminiKey ? 'text' : 'password'}
+              value={geminiApiKey}
+              onChange={(e) => setGeminiApiKey(e.target.value)}
+              placeholder="AIzaSy..."
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3 pr-10 py-2 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+            />
             <button
               type="button"
-              onClick={handleFetchModels}
-              disabled={loadingModels || !geminiApiKey.trim()}
-              className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 disabled:opacity-40 transition-colors"
+              onClick={() => setShowGeminiKey(!showGeminiKey)}
+              className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-200"
             >
-              <RefreshCw className={`w-3 h-3 ${loadingModels ? 'animate-spin' : ''}`} />
-              <span>{loadingModels ? '조회 중...' : '지원 모델 자동 조회'}</span>
+              {showGeminiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
 
-          <select
-            value={availableModels.includes(modelName) ? modelName : 'custom'}
-            onChange={(e) => {
-              if (e.target.value !== 'custom') {
-                setModelName(e.target.value);
-              }
-            }}
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
-          >
-            {availableModels.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-            <option value="custom">직접 입력 (Custom)...</option>
-          </select>
+          {/* Model Selection */}
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-slate-300 font-medium">기본 AI 모델</label>
+              <button
+                type="button"
+                onClick={handleFetchModels}
+                disabled={loadingModels || !geminiApiKey.trim()}
+                className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 disabled:opacity-40 transition-colors"
+              >
+                <RefreshCw className={`w-3 h-3 ${loadingModels ? 'animate-spin' : ''}`} />
+                <span>{loadingModels ? '조회 중...' : '지원 모델 자동 조회'}</span>
+              </button>
+            </div>
 
-          <div className="space-y-1">
+            <select
+              value={availableModels.includes(modelName) ? modelName : 'custom'}
+              onChange={(e) => {
+                if (e.target.value !== 'custom') {
+                  setModelName(e.target.value);
+                }
+              }}
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+            >
+              {availableModels.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+              <option value="custom">직접 입력 (Custom)...</option>
+            </select>
+
+            <div className="space-y-1">
+              <input
+                type="text"
+                value={modelName}
+                onChange={(e) => setModelName(e.target.value.trim())}
+                placeholder="예: gemini-3.6"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+              />
+              <p className="text-[10px] text-slate-500">
+                💡 오류 메시지에서 요구하는 모델명(예: <strong className="text-indigo-400">gemini-3.6</strong>)을 위 입력창에 직접 입력할 수 있습니다.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Local AI / Ollama Section */
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Server className="w-4 h-4 text-emerald-400" />
+              <h3 className="text-xs font-semibold text-white">Ollama / 로컬 AI 설정</h3>
+            </div>
+            <span className="text-[10px] bg-emerald-950/60 text-emerald-300 border border-emerald-800/60 px-2 py-0.5 rounded font-mono">
+              OpenAI 호환 API
+            </span>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs text-slate-300 font-medium">로컬 서버 Base URL</label>
             <input
               type="text"
-              value={modelName}
-              onChange={(e) => setModelName(e.target.value.trim())}
-              placeholder="예: gemini-3.6"
+              value={localBaseUrl}
+              onChange={(e) => setLocalBaseUrl(e.target.value)}
+              placeholder="http://localhost:11434/v1"
               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:border-indigo-500"
             />
             <p className="text-[10px] text-slate-500">
-              💡 오류 메시지에서 요구하는 모델명(예: <strong className="text-indigo-400">gemini-3.6</strong>)을 위 입력창에 직접 입력할 수 있습니다.
+              💡 Ollama 기본 주소: <code>http://localhost:11434/v1</code> 또는 원격 서버 주소
             </p>
           </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs text-slate-300 font-medium">API Key (선택사항)</label>
+            <input
+              type="password"
+              value={localApiKey}
+              onChange={(e) => setLocalApiKey(e.target.value)}
+              placeholder="Ollama는 비워두어도 됩니다"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+
+          {/* Local Model Selection */}
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-slate-300 font-medium">로컬 코딩 모델</label>
+              <button
+                type="button"
+                onClick={handleFetchLocalModels}
+                disabled={loadingLocalModels || !localBaseUrl.trim()}
+                className="text-[10px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1 disabled:opacity-40 transition-colors"
+              >
+                <RefreshCw className={`w-3 h-3 ${loadingLocalModels ? 'animate-spin' : ''}`} />
+                <span>{loadingLocalModels ? '조회 중...' : '서버 모델 목록 조회'}</span>
+              </button>
+            </div>
+
+            <select
+              value={availableLocalModels.includes(localModelName) ? localModelName : 'custom'}
+              onChange={(e) => {
+                if (e.target.value !== 'custom') {
+                  setLocalModelName(e.target.value);
+                }
+              }}
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
+            >
+              {availableLocalModels.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+              <option value="custom">직접 입력 (Custom)...</option>
+            </select>
+
+            <div className="space-y-1">
+              <input
+                type="text"
+                value={localModelName}
+                onChange={(e) => setLocalModelName(e.target.value.trim())}
+                placeholder="예: qwen2.5-coder:7b"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+              />
+              <p className="text-[10px] text-slate-500">
+                💡 추천 모델: <strong className="text-emerald-400">qwen2.5-coder:7b</strong>, <strong className="text-emerald-400">deepseek-coder-v2:16b</strong>, <strong className="text-emerald-400">llama3.1:8b</strong>
+              </p>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Mobile Access Guide */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
