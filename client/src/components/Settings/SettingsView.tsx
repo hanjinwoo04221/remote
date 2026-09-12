@@ -11,6 +11,7 @@ import {
   QrCode,
   Eye,
   EyeOff,
+  RefreshCw,
 } from 'lucide-react';
 import { UserSettings } from '../../types.js';
 import { ApiService } from '../../services/api.js';
@@ -29,12 +30,37 @@ interface SettingsViewProps {
 export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave }) => {
   const [githubToken, setGithubToken] = useState(settings.githubToken);
   const [geminiApiKey, setGeminiApiKey] = useState(settings.geminiApiKey);
-  const [modelName, setModelName] = useState(
-    settings.modelName?.includes('2.5') ? 'gemini-2.0-flash' : settings.modelName || 'gemini-2.0-flash'
-  );
+  const [modelName, setModelName] = useState(settings.modelName || 'gemini-3.6');
   const [connectionMode, setConnectionMode] = useState<'direct' | 'proxy'>(
     settings.connectionMode || 'direct'
   );
+
+  const [availableModels, setAvailableModels] = useState<string[]>([
+    'gemini-3.6',
+    'gemini-3.6-flash',
+    'gemini-3.8-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
+  ]);
+  const [loadingModels, setLoadingModels] = useState(false);
+
+  const handleFetchModels = async () => {
+    if (!geminiApiKey.trim()) return;
+    setLoadingModels(true);
+    try {
+      const fetched = await ApiService.fetchGeminiModels(geminiApiKey);
+      if (fetched.length > 0) {
+        setAvailableModels(fetched);
+        if (!fetched.includes(modelName)) {
+          setModelName(fetched[0]);
+        }
+      }
+    } catch {
+    } finally {
+      setLoadingModels(false);
+    }
+  };
 
   const [showGithubToken, setShowGithubToken] = useState(false);
   const [showGeminiKey, setShowGeminiKey] = useState(false);
@@ -253,19 +279,49 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave }) 
         </div>
 
         {/* Model Selection */}
-        <div className="space-y-1.5 pt-1">
-          <label className="text-xs text-slate-300 font-medium">기본 AI 모델</label>
+        <div className="space-y-2 pt-1">
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-slate-300 font-medium">기본 AI 모델</label>
+            <button
+              type="button"
+              onClick={handleFetchModels}
+              disabled={loadingModels || !geminiApiKey.trim()}
+              className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 disabled:opacity-40 transition-colors"
+            >
+              <RefreshCw className={`w-3 h-3 ${loadingModels ? 'animate-spin' : ''}`} />
+              <span>{loadingModels ? '조회 중...' : '지원 모델 자동 조회'}</span>
+            </button>
+          </div>
+
           <select
-            value={modelName}
-            onChange={(e) => setModelName(e.target.value)}
+            value={availableModels.includes(modelName) ? modelName : 'custom'}
+            onChange={(e) => {
+              if (e.target.value !== 'custom') {
+                setModelName(e.target.value);
+              }
+            }}
             className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
           >
-            <option value="gemini-2.0-flash">
-              Gemini 2.0 Flash (권장: 최신 정식 버전, 빠른 속도 및 도구 실행)
-            </option>
-            <option value="gemini-1.5-flash">Gemini 1.5 Flash (안정적인 표준 모델)</option>
-            <option value="gemini-1.5-pro">Gemini 1.5 Pro (복잡한 추론 및 대형 코드베이스)</option>
+            {availableModels.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+            <option value="custom">직접 입력 (Custom)...</option>
           </select>
+
+          <div className="space-y-1">
+            <input
+              type="text"
+              value={modelName}
+              onChange={(e) => setModelName(e.target.value.trim())}
+              placeholder="예: gemini-3.6"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+            />
+            <p className="text-[10px] text-slate-500">
+              💡 오류 메시지에서 요구하는 모델명(예: <strong className="text-indigo-400">gemini-3.6</strong>)을 위 입력창에 직접 입력할 수 있습니다.
+            </p>
+          </div>
         </div>
       </div>
 

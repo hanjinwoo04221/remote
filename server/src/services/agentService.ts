@@ -21,10 +21,10 @@ export class AgentService {
     repo,
     branch,
     prompt,
-    modelName = 'gemini-2.0-flash',
+    modelName = 'gemini-3.6',
     onEvent,
   }: RunAgentOptions): Promise<FileChange[]> {
-    const resolvedModel = modelName.includes('2.5') ? 'gemini-2.0-flash' : modelName;
+    const cleanModel = (modelName || 'gemini-3.6').trim().replace(/^models\//, '');
     const ai = new GoogleGenAI({ apiKey: geminiApiKey });
     const proposedChanges: Map<string, FileChange> = new Map();
 
@@ -144,7 +144,7 @@ Guidelines:
       });
 
       const response = await ai.models.generateContent({
-        model: resolvedModel,
+        model: cleanModel,
         contents,
         config: {
           systemInstruction,

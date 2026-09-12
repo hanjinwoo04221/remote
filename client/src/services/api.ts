@@ -34,6 +34,29 @@ export class ApiService {
     }
   }
 
+  static async fetchGeminiModels(apiKey: string): Promise<string[]> {
+    if (!apiKey || !apiKey.trim()) return [];
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey.trim())}`
+      );
+      if (!res.ok) return [];
+      const data = await res.json();
+      if (!data.models) return [];
+      const list: string[] = data.models
+        .filter(
+          (m: any) =>
+            Array.isArray(m.supportedGenerationMethods) &&
+            m.supportedGenerationMethods.includes('generateContent')
+        )
+        .map((m: any) => (m.name || '').replace(/^models\//, ''))
+        .filter(Boolean);
+      return Array.from(new Set(list));
+    } catch {
+      return [];
+    }
+  }
+
   static async verifyGitHubToken(token: string) {
     if (this.getMode() === 'direct') {
       return DirectGitHubService.verifyToken(token);

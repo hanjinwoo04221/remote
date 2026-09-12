@@ -33,7 +33,7 @@ export const App: React.FC = () => {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (!parsed.modelName || parsed.modelName.includes('2.5')) {
-          parsed.modelName = 'gemini-2.0-flash';
+          parsed.modelName = 'gemini-3.6';
           localStorage.setItem(SETTINGS_KEY, JSON.stringify(parsed));
         }
         return parsed;
@@ -42,7 +42,7 @@ export const App: React.FC = () => {
     return {
       githubToken: '',
       geminiApiKey: '',
-      modelName: 'gemini-2.0-flash',
+      modelName: 'gemini-3.6',
       connectionMode: 'direct',
     };
   });
