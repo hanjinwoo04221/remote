@@ -81,9 +81,14 @@ npm run dev
    - [GitHub Tokens 설정 페이지](https://github.com/settings/tokens/new?scopes=repo,read:user)에서 발급 (`repo`, `read:user` 권한 체크)
    - 비공개/공개 저장소 읽기, 브랜치 생성, 커밋 푸시, PR 생성에 사용됩니다.
 
-2. **Google Gemini API Key**:
-   - [Google AI Studio](https://aistudio.google.com/app/apikey)에서 무료로 발급받을 수 있습니다.
-   - 기본 모델은 속도와 도구 호출 성능이 뛰어난 `gemini-2.5-flash`가 권장되며, 복잡한 리팩토링의 경우 `gemini-2.5-pro`로 전환할 수 있습니다.
+2. **AI 엔진 선택 (Gemini 또는 Ollama/로컬 AI)**:
+   - **Google Gemini (클라우드)**:
+     - [Google AI Studio](https://aistudio.google.com/app/apikey)에서 무료 키 발급
+     - `gemini-3.6`, `gemini-3.6-flash`, `gemini-2.0-flash` 등 최신 모델 지원 (지원 모델 자동 조회 버튼 제공)
+   - **Ollama / 로컬 AI (OpenAI 규격)**:
+     - 내 PC 또는 클라우드 GPU 서버(RunPod/Vast.ai 등)의 Ollama / vLLM 주소 입력 (예: `http://localhost:11434/v1` 또는 `https://my-server.com/v1`)
+     - 추천 코딩 모델: `qwen2.5-coder:7b`, `deepseek-coder-v2:16b`, `llama3.1:8b`
+     - 서버 모델 목록 조회 버튼으로 다운로드된 모델 자동 탐색 지원
 
 ---
 
